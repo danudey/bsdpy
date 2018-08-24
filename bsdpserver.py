@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 ################################################################################
 # Copyright 2015 The Regents of the University of Michigan
 #
@@ -55,15 +55,22 @@
 #   or upstart this should not be an issue.
 #
 
-from pydhcplib.dhcp_packet import *
-from pydhcplib.dhcp_network import *
-from urlparse import urlparse
+from pydhcplib.dhcp_packet import DhcpPacket, ipv4, strlist
+from pydhcplib.dhcp_network import DhcpNetwork
+from urllib.parse import urlparse
 
-import socket, struct, fcntl
-import os, fnmatch
+import os
+import sys
+import errno
+import fcntl
+import signal
+import select
+import socket
+import struct
+import fnmatch
+import logging
 import plistlib
-import logging, optparse
-import signal, errno
+
 from docopt import docopt
 
 platform = sys.platform
@@ -83,7 +90,6 @@ Options:
 
 logging.basicConfig(format='%(asctime)s - %(levelname)s: %(message)s',
                     level=logging.DEBUG,
-                    filename='/var/log/bsdpserver.log',
                     datefmt='%m/%d/%Y %I:%M:%S %p')
 
 
@@ -801,7 +807,8 @@ def main():
         #   reload the nbiimages list.
         try:
             packet = server.GetNextDhcpPacket()
-        except select.error, e:
+            logging.debug("Got a packet! {}".format(packet))
+        except select.error as e:
             if e[0] != errno.EINTR: raise
 
         try:
@@ -831,7 +838,6 @@ def main():
 
                     bsdpselectack, selectackclientip, selectackreplyport = \
                         ack(packet, None, 'select')
-
                     # Once we have a finished DHCP packet, send it to the client
                     server.SendDhcpPacketTo(bsdpselectack,
                                             str(selectackclientip),
